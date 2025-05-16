@@ -3,7 +3,6 @@ const chromium = require("@sparticuz/chromium");
 
 exports.handler = async (event) => {
   const urlParam = event.queryStringParameters?.url;
-
   if (!urlParam) {
     return {
       statusCode: 400,
@@ -13,7 +12,7 @@ exports.handler = async (event) => {
 
   try {
     const browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
@@ -23,15 +22,10 @@ exports.handler = async (event) => {
     const page = await browser.newPage();
     await page.goto(urlParam, { waitUntil: "networkidle2", timeout: 30000 });
 
-    // Remove scripts and styles
-    await page.evaluate(() => {
+    const content = await page.evaluate(() => {
       document.querySelectorAll("script, style").forEach(el => el.remove());
+      return document.body.innerText.replace(/\s+/g, " ").trim();
     });
-
-    // Get the page text content
-    const content = await page.evaluate(() =>
-      document.body.innerText.replace(/\s+/g, " ").trim()
-    );
 
     await browser.close();
 
